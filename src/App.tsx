@@ -11,7 +11,7 @@ import type {
 } from './types/study';
 import { PHASES } from './data/phases';
 import { DOMAINS } from './data/domains';
-import { saveDraft, loadDraft, saveResponse } from './utils/storage';
+import { saveDraft, loadDraft, saveResponse, saveResponseToSupabase } from './utils/storage';
 import { exportSingleResponseJSON } from './utils/exportJson';
 import IntroPage from './components/IntroPage';
 import BackgroundForm from './components/BackgroundForm';
@@ -124,9 +124,14 @@ export default function App() {
     };
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const response = buildResponse();
-    saveResponse(response);
+    saveResponse(response); // localStorage backup
+    try {
+      await saveResponseToSupabase(response);
+    } catch (e) {
+      console.error('Supabase save failed, response stored locally only:', e);
+    }
     goTo('submitted');
   };
 

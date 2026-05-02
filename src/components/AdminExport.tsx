@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ParticipantResponse } from '../types/study';
 import { PHASES } from '../data/phases';
 import { DOMAINS } from '../data/domains';
 import { COORDINATION_TYPES } from '../data/coordinationTypes';
-import { loadAllResponses, deleteResponse } from '../utils/storage';
+import { loadAllResponsesFromSupabase } from '../utils/storage';
 import { exportSingleResponseJSON, exportAllResponsesJSON } from '../utils/exportJson';
 import { exportMatrixResponsesCSV, exportIncidentResponsesCSV } from '../utils/exportCsv';
 
@@ -28,17 +28,17 @@ function BarChart({ label, count, max }: { label: string; count: number; max: nu
 }
 
 export default function AdminExport({ onBack }: Props) {
-  const [responses, setResponses] = useState<ParticipantResponse[]>(loadAllResponses);
+  const [responses, setResponses] = useState<ParticipantResponse[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const reload = () => setResponses(loadAllResponses());
-
-  const handleDelete = (i: number) => {
-    if (!window.confirm('Delete this response permanently?')) return;
-    deleteResponse(i);
-    reload();
-    if (expanded === i) setExpanded(null);
-  };
+  useEffect(() => {
+    loadAllResponsesFromSupabase()
+      .then(setResponses)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   // Summary stats
   const allCells = responses.flatMap((r) => r.matrix_responses);
@@ -188,12 +188,6 @@ export default function AdminExport({ onBack }: Props) {
                     >
                       JSON
                     </button>
-                    <button
-                      onClick={() => handleDelete(i)}
-                      className="text-xs text-red-300 hover:text-red-500 transition-colors"
-                    >
-                      Delete
-                    </button>
                   </div>
                 </div>
 
@@ -243,7 +237,19 @@ export default function AdminExport({ onBack }: Props) {
         </>
       )}
 
-      {responses.length === 0 && (
+      {loading && (
+        <div className="border border-slate-200 rounded-lg p-10 text-center">
+          <p className="text-slate-400 text-sm">Loading responses from database…</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="border border-red-200 bg-red-50 rounded-lg p-5 text-center">
+          <p className="text-red-600 text-sm">Error loading data: {error}</p>
+        </div>
+      )}
+
+      {!loading && !error && responses.length === 0 && (
         <div className="border border-slate-200 rounded-lg p-10 text-center">
           <p className="text-slate-400 text-sm">No responses submitted yet.</p>
           <p className="text-slate-400 text-xs mt-1">
